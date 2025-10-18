@@ -307,7 +307,7 @@ func printVersion() {
 	fmt.Printf("vmxtool version %s\n", Version)
 	fmt.Printf("Build date: %s\n", BuildDate)
 	fmt.Printf("Commit: %s\n", Commit)
-	fmt.Printf("© 2025 David Parsons")
+	fmt.Printf("© 2025 David Parsons\n")
 }
 
 func main() {
