@@ -12,6 +12,8 @@ LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$BUILD_DATE -X main.Commit=$
 mkdir -p build
 cp -v README.md ./build
 cp -v LICENSE ./build
+cp -v sample.vmx ./build
+
 # AMD64 builds
 echo "Building AMD64 versions..."
 GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o build/windows/amd64/vmxtool.exe vmxtool.go
@@ -27,9 +29,7 @@ GOOS=darwin GOARCH=arm64 go build -ldflags="$LDFLAGS" -o build/darwin/arm64/vmxt
 # Build distribution zip file
 rm -vf ./dist/vmxtool-$VERSION.zip
 rm -vrf ./dist/vmxtool-$VERSION.sha256
-cd ./build
-zip ../dist/vmxtool-${VERSION}.zip ./*
-cd ..
+7z a ./dist/vmxtool-$VERSION.zip ./build/*
 shasum -a 256 ./dist/vmxtool-$VERSION.zip > ./dist/vmxtool-$VERSION.sha256
 
 echo "Build complete!"
