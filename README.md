@@ -1,4 +1,4 @@
-# vmxtool - Tool based to edit VMware VMX files
+# vmxtool - tool to edit VMware VMX files
 
 This is a clone of the VMware dictTool command first released in
 Fusion and Workstation 25H2. This tool was created so that users of 
