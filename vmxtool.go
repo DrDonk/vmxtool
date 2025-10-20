@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"slices"
 )
 
 // Version information - set during build
@@ -191,7 +192,7 @@ func (d *Dictionary) Remove(key string) error {
 	for i, entry := range d.Entries {
 		if entry.Key == key {
 			// Remove the entry
-			d.Entries = append(d.Entries[:i], d.Entries[i+1:]...)
+			d.Entries = slices.Delete(d.Entries, i, i+1)
 			return nil
 		}
 	}
