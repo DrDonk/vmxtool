@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"unicode"
 )
 
 // Version information - set during build
