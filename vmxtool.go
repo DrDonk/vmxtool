@@ -118,25 +118,17 @@ func (d *Dictionary) Save(filename string) error {
 			// Preserve comments exactly as they were
 			line = entry.Original
 		} else if entry.Key != "" {
+			// ALWAYS quote values for VMX compatibility
+			formattedValue := `"` + escapeQuotes(entry.Value) + `"`
+			
 			// Rebuild key-value lines while preserving the original format as much as possible
 			if strings.Contains(entry.Original, "=") {
 				// Try to preserve the original formatting around the equals sign
 				originalParts := strings.SplitN(entry.Original, "=", 2)
 				keyPart := strings.TrimRight(originalParts[0], " \t")
-				
-				// Format value with quotes if needed
-				formattedValue := entry.Value
-				if needsQuoting(entry.Value) {
-					formattedValue = `"` + entry.Value + `"`
-				}
-				
 				line = keyPart + " = " + formattedValue
 			} else {
 				// Fallback if original format can't be preserved
-				formattedValue := entry.Value
-				if needsQuoting(entry.Value) {
-					formattedValue = `"` + entry.Value + `"`
-				}
 				line = entry.Key + " = " + formattedValue
 			}
 		} else {
@@ -153,19 +145,16 @@ func (d *Dictionary) Save(filename string) error {
 	return writer.Flush()
 }
 
-// needsQuoting checks if a value needs to be quoted
-func needsQuoting(value string) bool {
-	if value == "" {
-		return true
-	}
-	
-	// Check if value contains spaces, quotes, or other special characters
-	for _, char := range value {
-		if unicode.IsSpace(char) || char == '"' || char == '=' {
-			return true
-		}
-	}
-	return false
+// escapeQuotes escapes existing quotes in the value
+func escapeQuotes(value string) string {
+	// Replace " with \" to escape existing quotes
+	return strings.ReplaceAll(value, `"`, `\"`)
+}
+
+// unescapeQuotes removes escape sequences from quotes
+func unescapeQuotes(value string) string {
+	// Replace \" with "
+	return strings.ReplaceAll(value, `\"`, `"`)
 }
 
 // Add adds a new key-value pair (fails if key exists)
@@ -176,7 +165,7 @@ func (d *Dictionary) Add(key, value string) error {
 	
 	// Add new entry at the end
 	entry := &Entry{
-		Original: key + " = " + value,
+		Original: key + " = " + `"` + value + `"`,
 		Key:      key,
 		Value:    value,
 	}
@@ -238,10 +227,8 @@ func (d *Dictionary) Print() {
 		} else if entry.IsComment {
 			fmt.Println(entry.Original)
 		} else if entry.Key != "" {
-			formattedValue := entry.Value
-			if needsQuoting(entry.Value) {
-				formattedValue = `"` + entry.Value + `"`
-			}
+			// ALWAYS quote values in output for consistency
+			formattedValue := `"` + escapeQuotes(entry.Value) + `"`
 			fmt.Printf("%s = %s\n", entry.Key, formattedValue)
 		} else {
 			fmt.Println(entry.Original)
@@ -259,9 +246,10 @@ func parseKeyValue(kv string) (string, string, error) {
 	key := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
 	
-	// Remove quotes if present in input
+	// Remove quotes if present in input and unescape
 	if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
 		value = value[1 : len(value)-1]
+		value = unescapeQuotes(value)
 	}
 	
 	if key == "" {
@@ -294,7 +282,7 @@ Available commands:
         not already exist.
 
     remove FILE KEY
-        Removes the entry with the specified key from the specified VMX
+        Remove the entry with the specified key from the specified VMX
         file. Fails if the key does not exist.
 
     query FILE KEY
@@ -311,10 +299,16 @@ func printVersion() {
 }
 
 func main() {
+	exitCode := 0
+	defer func() {
+		os.Exit(exitCode)
+	}()
+	
 	if len(os.Args) < 2 {
 		fmt.Println("Error: no command provided")
 		fmt.Println("Use 'vmxtool help' for usage information")
-		os.Exit(1)
+		exitCode = 1
+		return
 	}
 	
 	command := os.Args[1]
@@ -322,31 +316,37 @@ func main() {
 	switch command {
 	case "help":
 		printHelp()
+		exitCode = 0
 		
 	case "version":
 		printVersion()
+		exitCode = 0
 		
 	case "print":
 		if len(os.Args) != 3 {
 			fmt.Println("Error: print command requires FILE argument")
 			fmt.Println("Usage: vmxtool print FILE")
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		filename := os.Args[2]
 		
 		dict, err := LoadDictionary(filename)
 		if err != nil {
 			fmt.Printf("Error loading file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		dict.Print()
+		exitCode = 0
 		
 	case "add":
 		if len(os.Args) != 4 {
 			fmt.Println("Error: add command requires FILE and KEY=VALUE arguments")
 			fmt.Println("Usage: vmxtool add FILE KEY=VALUE")
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		filename := os.Args[2]
 		keyValue := os.Args[3]
@@ -354,32 +354,38 @@ func main() {
 		key, value, err := parseKeyValue(keyValue)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		dict, err := LoadDictionary(filename)
 		if err != nil {
 			fmt.Printf("Error loading file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		if err := dict.Add(key, value); err != nil {
 			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		if err := dict.Save(filename); err != nil {
 			fmt.Printf("Error saving file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		fmt.Printf("Added: %s=%s\n", key, value)
+		exitCode = 0
 		
 	case "set":
 		if len(os.Args) != 4 {
 			fmt.Println("Error: set command requires FILE and KEY=VALUE arguments")
 			fmt.Println("Usage: vmxtool set FILE KEY=VALUE")
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		filename := os.Args[2]
 		keyValue := os.Args[3]
@@ -387,29 +393,34 @@ func main() {
 		key, value, err := parseKeyValue(keyValue)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		dict, err := LoadDictionary(filename)
 		if err != nil {
 			fmt.Printf("Error loading file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		dict.Set(key, value)
 		
 		if err := dict.Save(filename); err != nil {
 			fmt.Printf("Error saving file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		fmt.Printf("Set: %s=%s\n", key, value)
+		exitCode = 0
 		
 	case "remove":
 		if len(os.Args) != 4 {
 			fmt.Println("Error: remove command requires FILE and KEY arguments")
 			fmt.Println("Usage: vmxtool remove FILE KEY")
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		filename := os.Args[2]
 		key := os.Args[3]
@@ -417,26 +428,31 @@ func main() {
 		dict, err := LoadDictionary(filename)
 		if err != nil {
 			fmt.Printf("Error loading file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		if err := dict.Remove(key); err != nil {
 			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		if err := dict.Save(filename); err != nil {
 			fmt.Printf("Error saving file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		fmt.Printf("Removed: %s\n", key)
+		exitCode = 0
 		
 	case "query":
 		if len(os.Args) != 4 {
 			fmt.Println("Error: query command requires FILE and KEY arguments")
 			fmt.Println("Usage: vmxtool query FILE KEY")
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		filename := os.Args[2]
 		key := os.Args[3]
@@ -444,20 +460,24 @@ func main() {
 		dict, err := LoadDictionary(filename)
 		if err != nil {
 			fmt.Printf("Error loading file: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		value, err := dict.Query(key)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			exitCode = 1
+			return
 		}
 		
 		fmt.Println(value)
+		exitCode = 0
 		
 	default:
 		fmt.Printf("Error: unknown command '%s'\n", command)
 		fmt.Println("Use 'vmxtool help' for usage information")
-		os.Exit(1)
+		exitCode = 1
+		return
 	}
 }
