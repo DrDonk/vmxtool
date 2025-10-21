@@ -209,6 +209,7 @@ func (d *Dictionary) Query(key string) (string, error) {
 	return "", fmt.Errorf("key '%s' does not exist", key)
 }
 
+
 // KeyExists checks if a key exists
 func (d *Dictionary) KeyExists(key string) bool {
 	for _, entry := range d.Entries {
@@ -377,7 +378,6 @@ func main() {
 			return
 		}
 		
-		fmt.Printf("Added: %s=%s\n", key, value)
 		exitCode = 0
 		
 	case "set":
@@ -412,7 +412,6 @@ func main() {
 			return
 		}
 		
-		fmt.Printf("Set: %s=%s\n", key, value)
 		exitCode = 0
 		
 	case "remove":
@@ -444,7 +443,6 @@ func main() {
 			return
 		}
 		
-		fmt.Printf("Removed: %s\n", key)
 		exitCode = 0
 		
 	case "query":
