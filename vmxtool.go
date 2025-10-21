@@ -157,6 +157,27 @@ func unescapeQuotes(value string) string {
 	return strings.ReplaceAll(value, `\"`, `"`)
 }
 
+// findEntryCaseInsensitive finds an entry by key (case-insensitive)
+func (d *Dictionary) findEntryCaseInsensitive(key string) *Entry {
+	lowerKey := strings.ToLower(key)
+	for _, entry := range d.Entries {
+		if strings.ToLower(entry.Key) == lowerKey {
+			return entry
+		}
+	}
+	return nil
+}
+
+// normalizeKeyCase normalizes the key case to use the first encountered case
+func (d *Dictionary) normalizeKeyCase(key string) string {
+	if entry := d.findEntryCaseInsensitive(key); entry != nil {
+		// Use the existing key's case
+		return entry.Key
+	}
+	// Use the provided key case if it's new
+	return key
+}
+
 // Add adds a new key-value pair (fails if key exists)
 func (d *Dictionary) Add(key, value string) error {
 	if d.KeyExists(key) {
@@ -175,22 +196,26 @@ func (d *Dictionary) Add(key, value string) error {
 
 // Set sets a key-value pair (adds or updates)
 func (d *Dictionary) Set(key, value string) {
-	// Try to update existing key
-	for _, entry := range d.Entries {
-		if entry.Key == key {
-			entry.Value = value
-			return
-		}
+	// Try to update existing key (case-insensitive)
+	if entry := d.findEntryCaseInsensitive(key); entry != nil {
+		entry.Value = value
+		return
 	}
-	
-	// Key doesn't exist, add it at the end
-	d.Add(key, value)
+
+	// Key doesn't exist, add it at the end with normalized case
+	normalizedKey := d.normalizeKeyCase(key)
+	entry := &Entry{
+		Original: normalizedKey + " = " + `"` + value + `"`,
+		Key:      normalizedKey,
+		Value:    value,
+	}
+	d.Entries = append(d.Entries, entry)
 }
 
 // Remove removes a key-value pair
 func (d *Dictionary) Remove(key string) error {
 	for i, entry := range d.Entries {
-		if entry.Key == key {
+		if strings.ToLower(entry.Key) == strings.ToLower(key) {
 			// Remove the entry
 			d.Entries = slices.Delete(d.Entries, i, i+1)
 			return nil
@@ -201,23 +226,15 @@ func (d *Dictionary) Remove(key string) error {
 
 // Query gets the value for a key
 func (d *Dictionary) Query(key string) (string, error) {
-	for _, entry := range d.Entries {
-		if entry.Key == key {
-			return entry.Value, nil
-		}
+	if entry := d.findEntryCaseInsensitive(key); entry != nil {
+		return entry.Value, nil
 	}
 	return "", fmt.Errorf("key '%s' does not exist", key)
 }
 
-
-// KeyExists checks if a key exists
+// KeyExists checks if a key exists (case-insensitive)
 func (d *Dictionary) KeyExists(key string) bool {
-	for _, entry := range d.Entries {
-		if entry.Key == key {
-			return true
-		}
-	}
-	return false
+	return d.findEntryCaseInsensitive(key) != nil
 }
 
 // Print prints all content while preserving layout
@@ -283,7 +300,7 @@ Available commands:
         not already exist.
 
     remove FILE KEY
-        Remove the entry with the specified key from the specified VMX
+        Removes the entry with the specified key from the specified VMX
         file. Fails if the key does not exist.
 
     query FILE KEY
@@ -366,6 +383,13 @@ func main() {
 			return
 		}
 		
+		// For add, use normalized case to check existence but preserve user input case
+		if dict.KeyExists(key) {
+			existingKey := dict.findEntryCaseInsensitive(key).Key
+			fmt.Printf("Error: key '%s' already exists (as '%s')\n", key, existingKey)
+			exitCode = 1
+			return
+		}
 		if err := dict.Add(key, value); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			exitCode = 1
