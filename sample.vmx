@@ -34,3 +34,7 @@ serial0.yieldOnMsrRead = "TRUE"
 
 __VMware_Build__ = ""
 vmx.buildType = "release"                # VMware build release/debug/stats
+
+test.emoji = "Hello 👋 World"
+test.chinese = "你好世界"
+test.special = "Café"
