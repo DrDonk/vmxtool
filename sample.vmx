@@ -4,7 +4,7 @@
 # 25e14db
 # SPDX-FileCopyrightText: © 2023-25 David Parsons
 # SPDX-License-Identifier: MIT
-.encoding =   "UTF-8"
+.encoding = "UTF-8"
 
 __OC4VM_GuestInfo__ = ""
 guestinfo.oc4vm.variant = "AMD"
