@@ -267,7 +267,7 @@ func (d *Dictionary) Set(key, value string) {
 // Remove removes a key-value pair
 func (d *Dictionary) Remove(key string) error {
 	for i, entry := range d.Entries {
-		if strings.ToLower(entry.Key) == strings.ToLower(key) {
+		if strings.EqualFold(entry.Key, key) {
 			d.Entries = slices.Delete(d.Entries, i, i+1)
 			return nil
 		}
