@@ -38,4 +38,4 @@ Available commands:
         Prints the value for the specified key from the specified VMX
         file. Fails if the key does not exist.
 ```
-(c) 2025 David Parsons
+(c) 2025-2026 David Parsons
